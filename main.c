@@ -17,6 +17,7 @@ const char IHDR[] = {73, 72, 68, 82};
 struct BasicChunkInfo
 {
     char type[4];
+    uint type_number;
     __uint16_t data_length;
     __uint16_t total_length;
     __uint16_t CRC;
@@ -49,9 +50,9 @@ int big_endian(char c[4])
     return (c[0] << 24) | ((c[1] & 0xFF) << 16) | ((c[2] & 0xFF) << 8) | (c[3] & 0xFF);
 }
 
-void read_n_bytes(FILE *fp, uint n, char buffer[n])
+char read_n_bytes(FILE *fp, uint n, char buffer[n])
 {
-    char c;
+    char c = EOF;
     for (size_t i = 0; i < n; i++)
     {
         c = getc(fp);
@@ -60,19 +61,22 @@ void read_n_bytes(FILE *fp, uint n, char buffer[n])
 
         buffer[i] = c;
     }
+    return c;
 }
 
-void read_base_info(FILE *fp, struct BasicChunkInfo *base)
+char read_base_info(FILE *fp, struct BasicChunkInfo *base)
 {
-    char c;
+    char c = EOF;
 
     char chunk_length[4];
-    read_n_bytes(fp, 4, chunk_length);
+    c = read_n_bytes(fp, 4, chunk_length);
     base->data_length = big_endian(chunk_length);
 
-    read_n_bytes(fp, 4, base->type);
+    c = read_n_bytes(fp, 4, base->type);
 
     base->total_length = base->data_length + 12; // Chunk length + chunk type + data length + CRC
+
+    return c;
 }
 
 int main(int argc, char *argv[])
@@ -100,7 +104,40 @@ int main(int argc, char *argv[])
     }
 
     struct BasicChunkInfo base;
-    read_base_info(fp, &base);
+    uint chunk_counter = 0;
+    while (read_base_info(fp, &base) != EOF)
+    {
+        char data[base.data_length];
+        for (size_t i = 0; i < base.data_length; i++)
+            data[i] = getc(fp);
+
+        char crc[4];
+        for (size_t i = 0; i < 4; i++)
+            crc[i] = getc(fp);
+
+        base.CRC = big_endian(crc);
+
+        chunk_counter++;
+    }
+
+    if (strcmp("IHDR", base.type) == 0)
+    {
+    }
+    if (strcmp("PLTE", base.type) == 0)
+    {
+    }
+    if (strcmp("IDAT", base.type) == 0)
+    {
+    }
+    if (strcmp("IEND", base.type) == 0)
+    {
+    }
+    if (strcmp("tEXt", base.type) == 0)
+    {
+    }
+    if (strcmp("sMSG", base.type) == 0)
+    {
+    }
 
     return 0;
 }
